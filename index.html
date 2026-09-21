@@ -79,8 +79,6 @@
     padding:7px 8px;width:100%;
   }
   .field input::placeholder{color:var(--muted-2);}
-  .field.range .inputs{display:flex;gap:6px;min-width:0;}
-  .field.range .inputs input{flex:1;min-width:0;}
   .filters .full{grid-column:1 / -1;}
   .filters-row2{
     display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;margin-top:10px;
@@ -236,19 +234,13 @@
     </div>
 
     <div class="filters-row2">
-      <div class="field range">
-        <label>peak mcap $</label>
-        <div class="inputs">
-          <input id="peakMin" type="number" min="0" placeholder="min" />
-          <input id="peakMax" type="number" min="0" placeholder="max" />
-        </div>
+      <div class="field">
+        <label for="peakMin">peak mcap ≥ $</label>
+        <input id="peakMin" type="number" min="0" placeholder="e.g. 1000000" />
       </div>
-      <div class="field range">
-        <label>age (days)</label>
-        <div class="inputs">
-          <input id="ageMin" type="number" min="0" placeholder="min" />
-          <input id="ageMax" type="number" min="0" placeholder="max" />
-        </div>
+      <div class="field">
+        <label for="ageMax">age ≤ (days)</label>
+        <input id="ageMax" type="number" min="0" placeholder="e.g. 7" />
       </div>
       <div class="field">
         <label for="pageSize">page size</label>
@@ -326,8 +318,6 @@
     quoteMint: document.getElementById('quoteMint'),
     category: document.getElementById('category'),
     peakMin: document.getElementById('peakMin'),
-    peakMax: document.getElementById('peakMax'),
-    ageMin: document.getElementById('ageMin'),
     ageMax: document.getElementById('ageMax'),
     pageSize: document.getElementById('pageSize'),
     resetBtn: document.getElementById('resetBtn'),
@@ -423,22 +413,17 @@
   }
 
   function hasExtraFilters(){
-    return els.peakMin.value !== '' || els.peakMax.value !== '' ||
-           els.ageMin.value !== '' || els.ageMax.value !== '';
+    return els.peakMin.value !== '' || els.ageMax.value !== '';
   }
 
   function applyClientFilters(tokens){
     var peakMin = els.peakMin.value !== '' ? Number(els.peakMin.value) : null;
-    var peakMax = els.peakMax.value !== '' ? Number(els.peakMax.value) : null;
-    var ageMin = els.ageMin.value !== '' ? Number(els.ageMin.value) : null;
     var ageMax = els.ageMax.value !== '' ? Number(els.ageMax.value) : null;
 
     return tokens.filter(function(t){
       var peak = t.market && t.market.peakMarketCapUsd;
       if (peakMin !== null && !(peak >= peakMin)) return false;
-      if (peakMax !== null && !(peak <= peakMax)) return false;
       var age = ageDays(t.createdAt);
-      if (ageMin !== null && !(age !== null && age >= ageMin)) return false;
       if (ageMax !== null && !(age !== null && age <= ageMax)) return false;
       return true;
     });
@@ -612,7 +597,7 @@
   // ---------- events ----------
   var debouncedReload = debounce(function(){ state.page = 1; load(); }, 400);
 
-  [els.q, els.quoteMint, els.category, els.peakMin, els.peakMax, els.ageMin, els.ageMax].forEach(function(el){
+  [els.q, els.quoteMint, els.category, els.peakMin, els.ageMax].forEach(function(el){
     el.addEventListener('input', debouncedReload);
   });
   [els.sort, els.mode, els.status].forEach(function(el){
@@ -628,8 +613,8 @@
   els.refreshBtn.addEventListener('click', function(){ state.cache.clear(); load(); });
   els.resetBtn.addEventListener('click', function(){
     els.q.value=''; els.sort.value='marketCap'; els.mode.value=''; els.status.value='';
-    els.quoteMint.value=''; els.category.value=''; els.peakMin.value=''; els.peakMax.value='';
-    els.ageMin.value=''; els.ageMax.value=''; els.pageSize.value='25';
+    els.quoteMint.value=''; els.category.value=''; els.peakMin.value='';
+    els.ageMax.value=''; els.pageSize.value='25';
     state.pageSize = 25; state.page = 1; state.localSortKey = null;
     load();
   });
@@ -657,7 +642,7 @@
   //   load();
   // }, 20000);
 
-  load();
+  // load();
 })();
 </script>
 </body>
