@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>StonkFun Token Screener</title>
+<title>STONK.SCAN — live token feed</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📈</text></svg>" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -79,9 +79,8 @@
     padding:7px 8px;width:100%;
   }
   .field input::placeholder{color:var(--muted-2);}
-  .field.range{flex-direction:row;gap:6px;align-items:flex-end;}
-  .field.range .inputs{display:flex;gap:6px;flex:1;}
-  .field.range input{width:0;flex:1;}
+  .field.range .inputs{display:flex;gap:6px;min-width:0;}
+  .field.range .inputs input{flex:1;min-width:0;}
   .filters .full{grid-column:1 / -1;}
   .filters-row2{
     display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;margin-top:10px;
@@ -238,14 +237,14 @@
 
     <div class="filters-row2">
       <div class="field range">
-        <label style="align-self:center;flex:none;">peak mcap $</label>
+        <label>peak mcap $</label>
         <div class="inputs">
           <input id="peakMin" type="number" min="0" placeholder="min" />
           <input id="peakMax" type="number" min="0" placeholder="max" />
         </div>
       </div>
       <div class="field range">
-        <label style="align-self:center;flex:none;">age (days)</label>
+        <label>age (days)</label>
         <div class="inputs">
           <input id="ageMin" type="number" min="0" placeholder="min" />
           <input id="ageMax" type="number" min="0" placeholder="max" />
