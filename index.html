@@ -202,7 +202,7 @@
       <select id="sort">
         <option value="marketCap">market cap</option>
         <option value="newest">newest</option>
-        <option value="volume">volume</option>
+        <option value="volume" selected>volume</option>
       </select>
     </div>
     <div class="field">
@@ -211,7 +211,7 @@
         <option value="">any</option>
         <option value="new">new</option>
         <option value="aboutToGraduate">about to graduate</option>
-        <option value="graduated">graduated</option>
+        <option value="graduated" selected>graduated</option>
       </select>
     </div>
     <div class="field">
@@ -276,7 +276,7 @@
   var state = {
     page: 1,
     pageSize: 25,
-    sort: "marketCap",
+    sort: "volume",
     localSortKey: null,
     localSortDir: -1, // -1 desc, 1 asc
     cache: new Map(),   // key -> {ts, payload}
@@ -549,8 +549,8 @@
   if (els.refreshBtn) els.refreshBtn.addEventListener('click', function(){ state.cache.clear(); load(); });
   if (els.resetBtn) els.resetBtn.addEventListener('click', function(){
     if (els.q) els.q.value='';
-    if (els.sort) els.sort.value='marketCap';
-    if (els.status) els.status.value='';
+    if (els.sort) els.sort.value='volume';
+    if (els.status) els.status.value='graduated';
     if (els.quoteMint) els.quoteMint.value='';
     if (els.pageSize) els.pageSize.value='25';
     state.pageSize = 25; state.page = 1; state.localSortKey = null;
