@@ -69,7 +69,7 @@
   .filters{
     background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
     padding:14px;margin-bottom:16px;
-    display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr 1fr 1fr;gap:10px;
+    display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:10px;
   }
   .field{display:flex;flex-direction:column;gap:5px;min-width:0;}
   .field label{font-size:10.5px;color:var(--muted-2);font-family:var(--mono);letter-spacing:0.3px;}
@@ -205,14 +205,6 @@
         <option value="volume">volume</option>
       </select>
     </div>
-    <!-- <div class="field">
-      <label for="mode">mode</label>
-      <select id="mode">
-        <option value="">any</option>
-        <option value="standard">standard</option>
-        <option value="reward">reward</option>
-      </select>
-    </div> -->
     <div class="field">
       <label for="status">status</label>
       <select id="status">
@@ -226,10 +218,6 @@
       <label for="quoteMint">quote mint</label>
       <input id="quoteMint" type="text" placeholder="paired token mint" autocomplete="off" />
     </div>
-    <!-- <div class="field">
-      <label for="category">category</label>
-      <input id="category" type="text" placeholder="e.g. xstock" autocomplete="off" />
-    </div> -->
 
     <div class="field">
       <label for="pageSize">page size</label>
@@ -299,10 +287,8 @@
   var els = {
     q: document.getElementById('q'),
     sort: document.getElementById('sort'),
-    // mode: document.getElementById('mode'),
     status: document.getElementById('status'),
     quoteMint: document.getElementById('quoteMint'),
-    // category: document.getElementById('category'),
     pageSize: document.getElementById('pageSize'),
     resetBtn: document.getElementById('resetBtn'),
     refreshBtn: document.getElementById('refreshBtn'),
@@ -381,10 +367,8 @@
     var p = new URLSearchParams();
     if (els.q.value.trim()) p.set('q', els.q.value.trim());
     p.set('sort', els.sort.value);
-    // if (els.mode.value) p.set('mode', els.mode.value);
     if (els.status.value) p.set('status', els.status.value);
     if (els.quoteMint.value.trim()) p.set('quoteMint', els.quoteMint.value.trim());
-    // if (els.category.value.trim()) p.set('category', els.category.value.trim());
     p.set('page', String(state.page));
     p.set('pageSize', String(state.pageSize));
     return p;
@@ -550,28 +534,33 @@
   var debouncedReload = debounce(function(){ state.page = 1; load(); }, 400);
 
   [els.q, els.quoteMint].forEach(function(el){
-    el.addEventListener('input', debouncedReload);
+    if (el) el.addEventListener('input', debouncedReload);
   });
   [els.sort, els.status].forEach(function(el){
-    el.addEventListener('change', function(){ state.page = 1; load(); });
+    if (el) el.addEventListener('change', function(){ state.page = 1; load(); });
   });
-  els.pageSize.addEventListener('change', function(){
+  if (els.pageSize) els.pageSize.addEventListener('change', function(){
     state.pageSize = Number(els.pageSize.value);
     state.page = 1;
     load();
   });
-  els.prevBtn.addEventListener('click', function(){ if (state.page > 1){ state.page--; load(); } });
-  els.nextBtn.addEventListener('click', function(){ state.page++; load(); });
-  els.refreshBtn.addEventListener('click', function(){ state.cache.clear(); load(); });
-  els.resetBtn.addEventListener('click', function(){
-    els.q.value=''; els.sort.value='marketCap'; els.status.value=''; // els.mode.value='';
-    els.quoteMint.value=''; els.pageSize.value='25'; // els.category.value='';
+  if (els.prevBtn) els.prevBtn.addEventListener('click', function(){ if (state.page > 1){ state.page--; load(); } });
+  if (els.nextBtn) els.nextBtn.addEventListener('click', function(){ state.page++; load(); });
+  if (els.refreshBtn) els.refreshBtn.addEventListener('click', function(){ state.cache.clear(); load(); });
+  if (els.resetBtn) els.resetBtn.addEventListener('click', function(){
+    if (els.q) els.q.value='';
+    if (els.sort) els.sort.value='marketCap';
+    if (els.status) els.status.value='';
+    if (els.quoteMint) els.quoteMint.value='';
+    if (els.pageSize) els.pageSize.value='25';
     state.pageSize = 25; state.page = 1; state.localSortKey = null;
     load();
   });
 
   Array.prototype.forEach.call(document.querySelectorAll('thead th[data-key]'), function(th){
-    th.querySelector('button').addEventListener('click', function(){
+    var btn = th.querySelector('button');
+    if (!btn) return;
+    btn.addEventListener('click', function(){
       var key = th.getAttribute('data-key');
       if (state.localSortKey === key){
         state.localSortDir *= -1;
@@ -586,12 +575,12 @@
     });
   });
 
-  // periodic soft refresh every 1 minute (only clears cache, load() re-fetches on next interaction
+  // periodic soft refresh every 20s (only clears cache, load() re-fetches on next interaction
   // or immediately if the user is idle on page 1 with no filters)
-  // setInterval(function(){
-  //   state.cache.clear();
-  //   load();
-  // }, 100000);
+  setInterval(function(){
+    state.cache.clear();
+    load();
+  }, 20000);
 
   load();
 })();
