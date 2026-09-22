@@ -575,12 +575,12 @@
     });
   });
 
-  // periodic soft refresh every 20s (only clears cache, load() re-fetches on next interaction
+  // periodic soft refresh every 5 minutes (only clears cache, load() re-fetches on next interaction
   // or immediately if the user is idle on page 1 with no filters)
   setInterval(function(){
     state.cache.clear();
     load();
-  }, 20000);
+  }, 500000);
 
   load();
 })();
