@@ -267,6 +267,7 @@
   "use strict";
 
   var API = "/api/tokens";
+  var SORTABLE_KEYS = ["priceUsd","marketCapUsd","peakMarketCapUsd","volume24hUsd","priceChange24h","createdAt"];
   var state = {
     page: 1,
     pageSize: 25,
@@ -277,6 +278,7 @@
     inFlight: null
   };
   var CACHE_TTL_MS = 15000;
+  var suppressPopstate = false;
 
   var els = {
     q: document.getElementById('q'),
@@ -354,6 +356,70 @@
     els.toast.classList.add('show');
     clearTimeout(toast._t);
     toast._t = setTimeout(function(){ els.toast.classList.remove('show'); }, 1400);
+  }
+
+  // ---------- URL <-> state sync ----------
+  function readStateFromUrl(){
+    var sp = new URLSearchParams(location.search);
+
+    var q = sp.get('q') || '';
+    var sortVal = sp.get('sort');
+    var statusVal = sp.get('status');
+    var quoteMint = sp.get('quoteMint') || '';
+    var page = parseInt(sp.get('page'), 10);
+    var pageSize = parseInt(sp.get('pageSize'), 10);
+    var sortKey = sp.get('sortKey');
+    var sortDir = sp.get('sortDir');
+
+    if (els.q) els.q.value = q;
+    if (els.sort){
+      var validSorts = ['marketCap','newest','volume'];
+      els.sort.value = (sortVal && validSorts.indexOf(sortVal) !== -1) ? sortVal : 'volume';
+    }
+    if (els.status){
+      var validStatuses = ['', 'new', 'aboutToGraduate', 'graduated'];
+      // distinguish "no ?status param" (use markup default) from "?status=" (explicit "any")
+      els.status.value = (statusVal !== null && validStatuses.indexOf(statusVal) !== -1) ? statusVal : (statusVal === null ? els.status.value : '');
+    }
+    if (els.quoteMint) els.quoteMint.value = quoteMint;
+
+    state.page = (!isNaN(page) && page > 0) ? page : 1;
+    state.pageSize = ([25,50,100].indexOf(pageSize) !== -1) ? pageSize : 25;
+    if (els.pageSize) els.pageSize.value = String(state.pageSize);
+
+    state.localSortKey = (sortKey && SORTABLE_KEYS.indexOf(sortKey) !== -1) ? sortKey : null;
+    state.localSortDir = (sortDir === '1') ? 1 : -1;
+  }
+
+  function writeUrlToState(opts){
+    opts = opts || {};
+    var push = !!opts.push;
+
+    var p = new URLSearchParams();
+    if (els.q.value.trim()) p.set('q', els.q.value.trim());
+    p.set('sort', els.sort.value);
+    if (els.status.value) p.set('status', els.status.value);
+    if (els.quoteMint.value.trim()) p.set('quoteMint', els.quoteMint.value.trim());
+    p.set('page', String(state.page));
+    p.set('pageSize', String(state.pageSize));
+    if (state.localSortKey){
+      p.set('sortKey', state.localSortKey);
+      p.set('sortDir', String(state.localSortDir));
+    }
+
+    var query = p.toString();
+    var newUrl = location.pathname + (query ? '?' + query : '') + location.hash;
+    var currentUrl = location.pathname + location.search + location.hash;
+    if (newUrl === currentUrl) return;
+
+    suppressPopstate = true;
+    if (push){
+      history.pushState({ stonkscan: true }, '', newUrl);
+    } else {
+      history.replaceState({ stonkscan: true }, '', newUrl);
+    }
+    // popstate never fires for pushState/replaceState calls themselves, but reset defensively
+    suppressPopstate = false;
   }
 
   // ---------- building the request ----------
@@ -474,6 +540,8 @@
   function currentCacheKey(params){ return params.toString(); }
 
   function load(){
+    writeUrlToState({ push: false });
+
     var params = buildParams();
     var key = currentCacheKey(params);
     var cached = state.cache.get(key);
@@ -566,7 +634,16 @@
       var cached = state.cache.get(currentCacheKey(params));
       if (cached) handlePayload(cached.payload, true);
       updateSortArrows();
+      writeUrlToState({ push: false });
     });
+  });
+
+  // browser back/forward: re-read filters/page/sort from the URL and reload
+  window.addEventListener('popstate', function(){
+    if (suppressPopstate) return;
+    readStateFromUrl();
+    updateSortArrows();
+    load();
   });
 
   // periodic soft refresh every 5 minutes (only clears cache, load() re-fetches on next interaction
@@ -576,6 +653,8 @@
     load();
   }, 500000);
 
+  readStateFromUrl();
+  updateSortArrows();
   load();
 })();
 </script>
