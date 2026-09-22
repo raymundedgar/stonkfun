@@ -81,10 +81,8 @@
   .field input::placeholder{color:var(--muted-2);}
   .filters .full{grid-column:1 / -1;}
   .filters-row2{
-    display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;margin-top:10px;
+    display:grid;grid-template-columns:200px 1fr;gap:10px;margin-top:10px;
   }
-  .hint{font-family:var(--mono);font-size:11px;color:var(--muted-2);margin-top:8px;line-height:1.5;}
-  .hint strong{color:var(--muted);}
   @media (max-width:980px){
     .filters{grid-template-columns:1fr 1fr;}
     .filters-row2{grid-template-columns:1fr 1fr;}
@@ -207,14 +205,14 @@
         <option value="volume">volume</option>
       </select>
     </div>
-    <div class="field">
+    <!-- <div class="field">
       <label for="mode">mode</label>
       <select id="mode">
         <option value="">any</option>
         <option value="standard">standard</option>
         <option value="reward">reward</option>
       </select>
-    </div>
+    </div> -->
     <div class="field">
       <label for="status">status</label>
       <select id="status">
@@ -228,35 +226,23 @@
       <label for="quoteMint">quote mint</label>
       <input id="quoteMint" type="text" placeholder="paired token mint" autocomplete="off" />
     </div>
-    <div class="field">
+    <!-- <div class="field">
       <label for="category">category</label>
       <input id="category" type="text" placeholder="e.g. xstock" autocomplete="off" />
-    </div>
+    </div> -->
 
-    <div class="filters-row2">
-      <div class="field">
-        <label for="peakMin">peak mcap ≥ $</label>
-        <input id="peakMin" type="number" min="0" placeholder="e.g. 1000000" />
-      </div>
-      <div class="field">
-        <label for="ageMax">age ≤ (days)</label>
-        <input id="ageMax" type="number" min="0" placeholder="e.g. 7" />
-      </div>
-      <div class="field">
-        <label for="pageSize">page size</label>
-        <select id="pageSize">
-          <option value="25">25</option>
-          <option value="50">50</option>
-          <option value="100">100</option>
-        </select>
-      </div>
-      <div class="field" style="justify-content:flex-end;">
-        <label>&nbsp;</label>
-        <button class="refresh" id="resetBtn" type="button" style="width:100%;">reset filters</button>
-      </div>
+    <div class="field">
+      <label for="pageSize">page size</label>
+      <select id="pageSize">
+        <option value="25">25</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+      </select>
     </div>
-
-    <div class="hint" id="filterHint"></div>
+    <div class="field" style="justify-content:flex-end;">
+      <label>Reset</label>
+      <button class="refresh" id="resetBtn" type="button" style="width:100%;">reset filters</button>
+    </div>
   </div>
 
   <div class="table-shell">
@@ -317,8 +303,6 @@
     status: document.getElementById('status'),
     quoteMint: document.getElementById('quoteMint'),
     category: document.getElementById('category'),
-    peakMin: document.getElementById('peakMin'),
-    ageMax: document.getElementById('ageMax'),
     pageSize: document.getElementById('pageSize'),
     resetBtn: document.getElementById('resetBtn'),
     refreshBtn: document.getElementById('refreshBtn'),
@@ -329,7 +313,6 @@
     nextBtn: document.getElementById('nextBtn'),
     liveDot: document.getElementById('liveDot'),
     statusText: document.getElementById('statusText'),
-    filterHint: document.getElementById('filterHint'),
     toast: document.getElementById('toast')
   };
 
@@ -372,11 +355,6 @@
     return yr.toFixed(1) + 'y';
   }
 
-  function ageDays(iso){
-    if (!iso) return null;
-    return (Date.now() - new Date(iso).getTime()) / 86400000;
-  }
-
   function statusLabel(s){
     if (s === 'aboutToGraduate') return 'about to graduate';
     return s || '—';
@@ -410,23 +388,6 @@
     p.set('page', String(state.page));
     p.set('pageSize', String(state.pageSize));
     return p;
-  }
-
-  function hasExtraFilters(){
-    return els.peakMin.value !== '' || els.ageMax.value !== '';
-  }
-
-  function applyClientFilters(tokens){
-    var peakMin = els.peakMin.value !== '' ? Number(els.peakMin.value) : null;
-    var ageMax = els.ageMax.value !== '' ? Number(els.ageMax.value) : null;
-
-    return tokens.filter(function(t){
-      var peak = t.market && t.market.peakMarketCapUsd;
-      if (peakMin !== null && !(peak >= peakMin)) return false;
-      var age = ageDays(t.createdAt);
-      if (ageMax !== null && !(age !== null && age <= ageMax)) return false;
-      return true;
-    });
   }
 
   function applyLocalSort(tokens){
@@ -567,23 +528,14 @@
     var tokens = data.tokens || [];
     var pagination = data.pagination || { page: state.page, pageSize: state.pageSize, total: tokens.length, totalPages: 1 };
 
-    var filtered = applyClientFilters(tokens);
-    var sorted = applyLocalSort(filtered);
+    var sorted = applyLocalSort(tokens);
     renderRows(sorted);
     updateSortArrows();
 
-    var countMsg = filtered.length + ' of ' + pagination.total.toLocaleString() + ' total';
-    if (hasExtraFilters() && filtered.length !== tokens.length){
-      countMsg = filtered.length + ' match on this page (out of ' + tokens.length + ' loaded) · ' + pagination.total.toLocaleString() + ' total unfiltered';
-    }
-    els.countText.textContent = countMsg;
+    els.countText.textContent = tokens.length + ' of ' + pagination.total.toLocaleString() + ' total';
     els.pageText.textContent = 'page ' + pagination.page + ' / ' + pagination.totalPages.toLocaleString();
     els.prevBtn.disabled = pagination.page <= 1;
     els.nextBtn.disabled = pagination.page >= pagination.totalPages;
-
-    els.filterHint.innerHTML = hasExtraFilters()
-      ? '<strong>peak mcap / age</strong> aren\'t supported by the API, so they\'re applied to the current page only — narrow with search/sort first, or bump page size to 100 for a wider sweep.'
-      : 'tip: peak mcap and age filters apply to the currently loaded page (the API doesn\'t support them server-side).';
 
     var genAt = payload.meta && payload.meta.generatedAt;
     setStatus('live', (fromCache ? 'cached · ' : 'live · ') + (genAt ? new Date(genAt).toLocaleTimeString() : new Date().toLocaleTimeString()));
@@ -597,7 +549,7 @@
   // ---------- events ----------
   var debouncedReload = debounce(function(){ state.page = 1; load(); }, 400);
 
-  [els.q, els.quoteMint, els.category, els.peakMin, els.ageMax].forEach(function(el){
+  [els.q, els.quoteMint, els.category].forEach(function(el){
     el.addEventListener('input', debouncedReload);
   });
   [els.sort, els.mode, els.status].forEach(function(el){
@@ -613,8 +565,7 @@
   els.refreshBtn.addEventListener('click', function(){ state.cache.clear(); load(); });
   els.resetBtn.addEventListener('click', function(){
     els.q.value=''; els.sort.value='marketCap'; els.mode.value=''; els.status.value='';
-    els.quoteMint.value=''; els.category.value=''; els.peakMin.value='';
-    els.ageMax.value=''; els.pageSize.value='25';
+    els.quoteMint.value=''; els.category.value=''; els.pageSize.value='25';
     state.pageSize = 25; state.page = 1; state.localSortKey = null;
     load();
   });
@@ -635,14 +586,14 @@
     });
   });
 
-  // periodic soft refresh every 20s (only clears cache, load() re-fetches on next interaction
+  // periodic soft refresh every 1 minute (only clears cache, load() re-fetches on next interaction
   // or immediately if the user is idle on page 1 with no filters)
   // setInterval(function(){
   //   state.cache.clear();
   //   load();
-  // }, 20000);
+  // }, 100000);
 
-  // load();
+  load();
 })();
 </script>
 </body>
