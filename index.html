@@ -299,10 +299,10 @@
   var els = {
     q: document.getElementById('q'),
     sort: document.getElementById('sort'),
-    mode: document.getElementById('mode'),
+    // mode: document.getElementById('mode'),
     status: document.getElementById('status'),
     quoteMint: document.getElementById('quoteMint'),
-    category: document.getElementById('category'),
+    // category: document.getElementById('category'),
     pageSize: document.getElementById('pageSize'),
     resetBtn: document.getElementById('resetBtn'),
     refreshBtn: document.getElementById('refreshBtn'),
@@ -381,10 +381,10 @@
     var p = new URLSearchParams();
     if (els.q.value.trim()) p.set('q', els.q.value.trim());
     p.set('sort', els.sort.value);
-    if (els.mode.value) p.set('mode', els.mode.value);
+    // if (els.mode.value) p.set('mode', els.mode.value);
     if (els.status.value) p.set('status', els.status.value);
     if (els.quoteMint.value.trim()) p.set('quoteMint', els.quoteMint.value.trim());
-    if (els.category.value.trim()) p.set('category', els.category.value.trim());
+    // if (els.category.value.trim()) p.set('category', els.category.value.trim());
     p.set('page', String(state.page));
     p.set('pageSize', String(state.pageSize));
     return p;
@@ -549,10 +549,10 @@
   // ---------- events ----------
   var debouncedReload = debounce(function(){ state.page = 1; load(); }, 400);
 
-  [els.q, els.quoteMint, els.category].forEach(function(el){
+  [els.q, els.quoteMint].forEach(function(el){
     el.addEventListener('input', debouncedReload);
   });
-  [els.sort, els.mode, els.status].forEach(function(el){
+  [els.sort, els.status].forEach(function(el){
     el.addEventListener('change', function(){ state.page = 1; load(); });
   });
   els.pageSize.addEventListener('change', function(){
@@ -564,8 +564,8 @@
   els.nextBtn.addEventListener('click', function(){ state.page++; load(); });
   els.refreshBtn.addEventListener('click', function(){ state.cache.clear(); load(); });
   els.resetBtn.addEventListener('click', function(){
-    els.q.value=''; els.sort.value='marketCap'; els.mode.value=''; els.status.value='';
-    els.quoteMint.value=''; els.category.value=''; els.pageSize.value='25';
+    els.q.value=''; els.sort.value='marketCap'; els.status.value=''; // els.mode.value='';
+    els.quoteMint.value=''; els.pageSize.value='25'; // els.category.value='';
     state.pageSize = 25; state.page = 1; state.localSortKey = null;
     load();
   });
