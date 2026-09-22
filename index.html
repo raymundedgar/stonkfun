@@ -272,7 +272,7 @@
     page: 1,
     pageSize: 100,
     sort: "volume",
-    localSortKey: null,
+    localSortKey: 'volume24hUsd',
     localSortDir: -1, // -1 desc, 1 asc
     cache: new Map(),   // key -> {ts, payload}
     inFlight: null,
@@ -389,7 +389,7 @@
     state.pageSize = ([25,50,100].indexOf(pageSize) !== -1) ? pageSize : 100;
     if (els.pageSize) els.pageSize.value = String(state.pageSize);
 
-    state.localSortKey = (sortKey && SORTABLE_KEYS.indexOf(sortKey) !== -1) ? sortKey : null;
+    state.localSortKey = (sortKey && SORTABLE_KEYS.indexOf(sortKey) !== -1) ? sortKey : 'volume24hUsd';
     state.localSortDir = (sortDir === '1') ? 1 : -1;
   }
 
@@ -703,7 +703,7 @@
     if (els.status) els.status.value='graduated';
     if (els.quoteMint) els.quoteMint.value='';
     if (els.pageSize) els.pageSize.value='100';
-    state.pageSize = 100; state.page = 1; state.localSortKey = null;
+    state.pageSize = 100; state.page = 1; state.localSortKey = 'volume24hUsd';
     load();
   });
 
