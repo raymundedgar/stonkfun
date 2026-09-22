@@ -270,7 +270,7 @@
   var SORTABLE_KEYS = ["priceUsd","marketCapUsd","peakMarketCapUsd","volume24hUsd","priceChange24h","createdAt"];
   var state = {
     page: 1,
-    pageSize: 25,
+    pageSize: 100,
     sort: "volume",
     localSortKey: null,
     localSortDir: -1, // -1 desc, 1 asc
@@ -386,7 +386,7 @@
     if (els.quoteMint) els.quoteMint.value = quoteMint;
 
     state.page = (!isNaN(page) && page > 0) ? page : 1;
-    state.pageSize = ([25,50,100].indexOf(pageSize) !== -1) ? pageSize : 25;
+    state.pageSize = ([25,50,100].indexOf(pageSize) !== -1) ? pageSize : 100;
     if (els.pageSize) els.pageSize.value = String(state.pageSize);
 
     state.localSortKey = (sortKey && SORTABLE_KEYS.indexOf(sortKey) !== -1) ? sortKey : null;
@@ -702,8 +702,8 @@
     if (els.sort) els.sort.value='volume';
     if (els.status) els.status.value='graduated';
     if (els.quoteMint) els.quoteMint.value='';
-    if (els.pageSize) els.pageSize.value='25';
-    state.pageSize = 25; state.page = 1; state.localSortKey = null;
+    if (els.pageSize) els.pageSize.value='100';
+    state.pageSize = 100; state.page = 1; state.localSortKey = null;
     load();
   });
 
