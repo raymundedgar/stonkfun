@@ -275,7 +275,9 @@
     localSortKey: null,
     localSortDir: -1, // -1 desc, 1 asc
     cache: new Map(),   // key -> {ts, payload}
-    inFlight: null
+    inFlight: null,
+    rateLimitedUntil: null, // ms timestamp; set while honouring a 429 Retry-After
+    retryTimer: null
   };
   var CACHE_TTL_MS = 15000;
   var suppressPopstate = false;
@@ -536,11 +538,43 @@
     });
   }
 
+  // ---------- API error contract ----------
+  // Every failure the API returns is shaped { error: { code, message } }.
+  // `code` is stable and is what we branch on; `message` is for humans and
+  // may be reworded upstream, so it's only used as a fallback.
+  var ERROR_MESSAGES = {
+    invalid_request:     'invalid request — check the search or filter values.',
+    forbidden:            'that action was refused.',
+    not_found:            'no matching resource found.',
+    method_not_allowed:   'wrong request method for this endpoint.',
+    conflict:             'that request conflicts with the current state.',
+    rate_limited:         'rate limit hit.',
+    internal:             'something broke upstream — safe to retry.',
+    service_unavailable:  'the token feed is temporarily unavailable.'
+  };
+  // Codes where retrying the exact same request right away is known-safe.
+  var AUTO_RETRYABLE = { internal: true, service_unavailable: true };
+  // conflict is deliberately excluded: per the API docs, a 409 means the
+  // moment was wrong (e.g. a launch payment already landed, or a fee claim
+  // isn't ready yet) and blindly retrying/re-paying is the wrong move —
+  // it needs a person to look, not an auto-retry loop.
+
+  function describeError(code, fallbackMessage, retryAfterSec){
+    var msg = ERROR_MESSAGES[code] || fallbackMessage || 'unknown error';
+    if (code === 'rate_limited' && retryAfterSec) msg += ' retry in ' + retryAfterSec + 's.';
+    return msg;
+  }
+
   // ---------- fetch flow ----------
   function currentCacheKey(params){ return params.toString(); }
 
   function load(){
     writeUrlToState({ push: false });
+
+    if (state.rateLimitedUntil && Date.now() < state.rateLimitedUntil){
+      // still cooling down — the countdown timer will call load() again itself
+      return;
+    }
 
     var params = buildParams();
     var key = currentCacheKey(params);
@@ -555,18 +589,72 @@
 
     fetch(API + '?' + params.toString())
       .then(function(res){
-        if (!res.ok) throw new Error('request failed (' + res.status + ')');
-        return res.json();
+        var retryAfterHeader = res.headers.get('Retry-After');
+        var retryAfterSec = retryAfterHeader ? parseInt(retryAfterHeader, 10) : null;
+        return res.json()
+          .catch(function(){ return null; }) // body wasn't JSON (or was empty)
+          .then(function(payload){
+            return { ok: res.ok, status: res.status, payload: payload, retryAfterSec: retryAfterSec };
+          });
       })
-      .then(function(payload){
-        if (payload.error) throw new Error(payload.error);
+      .then(function(result){
+        var payload = result.payload;
+        var apiError = payload && payload.error;
+
+        if (!result.ok || apiError){
+          var code = apiError ? apiError.code : null;
+          var rawMessage = apiError ? apiError.message : null;
+          var err = new Error(describeError(code, rawMessage || ('request failed (' + result.status + ')'), result.retryAfterSec));
+          err.code = code;
+          err.status = result.status;
+          err.retryAfterSec = result.retryAfterSec;
+          throw err;
+        }
+
+        state.rateLimitedUntil = null;
         state.cache.set(key, { ts: Date.now(), payload: payload });
         handlePayload(payload, false);
       })
       .catch(function(err){
-        setStatus('error', 'connection issue');
-        els.tbody.innerHTML = '<tr><td colspan="9"><div class="error">couldn\'t load tokens — ' + escapeHtml(err.message) + '. <button class="refresh" onclick="location.reload()">reload</button></div></td></tr>';
+        renderError(err);
       });
+  }
+
+  function renderError(err){
+    var code = err.code;
+
+    if (code === 'rate_limited' && err.retryAfterSec){
+      setStatus('error', 'rate limited');
+      state.rateLimitedUntil = Date.now() + (err.retryAfterSec * 1000);
+      els.tbody.innerHTML = '<tr><td colspan="9"><div class="error">' + escapeHtml(err.message) + '</div></td></tr>';
+      startRetryCountdown(err.retryAfterSec);
+      return;
+    }
+
+    setStatus('error', 'connection issue');
+    var canAutoRetry = AUTO_RETRYABLE[code] || !code; // unknown/network errors are also safe to retry
+    var actionHtml = canAutoRetry
+      ? '<button class="refresh" id="retryBtn" type="button">retry</button>'
+      : '<button class="refresh" onclick="location.reload()">reload</button>';
+    els.tbody.innerHTML = '<tr><td colspan="9"><div class="error">couldn\'t load tokens — ' + escapeHtml(err.message) + '. ' + actionHtml + '</div></td></tr>';
+
+    var retryBtn = document.getElementById('retryBtn');
+    if (retryBtn) retryBtn.addEventListener('click', function(){ load(); });
+  }
+
+  function startRetryCountdown(seconds){
+    var remaining = seconds;
+    clearInterval(state.retryTimer);
+    state.retryTimer = setInterval(function(){
+      remaining--;
+      var cell = els.tbody.querySelector('.error');
+      if (cell) cell.textContent = 'rate limited — retrying in ' + Math.max(remaining, 0) + 's…';
+      if (remaining <= 0){
+        clearInterval(state.retryTimer);
+        state.rateLimitedUntil = null;
+        load();
+      }
+    }, 1000);
   }
 
   function handlePayload(payload, fromCache){

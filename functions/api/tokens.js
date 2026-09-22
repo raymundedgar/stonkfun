@@ -7,6 +7,10 @@
 // Pages Function sidesteps that entirely (server-to-server has no CORS
 // concept), and lets us add a short edge cache so repeat visits/filter
 // tweaks are fast and don't hammer the upstream API.
+//
+// Error contract: every failure this function returns (as opposed to what it
+// passes through from upstream) is shaped { error: { code, message } } per
+// the API docs, with `code` as the stable field callers should branch on.
 
 const UPSTREAM = "https://www.stonkfun.xyz/api/public/v1/tokens";
 
@@ -47,18 +51,31 @@ export async function onRequestGet(context) {
       cf: { cacheTtl: CACHE_SECONDS, cacheEverything: true },
     });
   } catch (err) {
-    return jsonResponse({ error: "Upstream fetch failed", detail: String(err) }, 502);
+    // We never reached stonk.fun at all — that's a dependency being down,
+    // which is exactly what service_unavailable (503) means per the docs.
+    // Not cached, and not retried automatically here: the client decides
+    // whether/when to retry.
+    return errorResponse("service_unavailable", "Could not reach the upstream token feed. Please try again.", 503);
   }
 
   const body = await upstreamRes.text();
 
+  const headers = {
+    "content-type": "application/json; charset=utf-8",
+    "access-control-allow-origin": "*",
+    "cache-control": upstreamRes.ok ? `public, max-age=${CACHE_SECONDS}` : "no-store",
+  };
+
+  // rate_limited (429) responses carry a Retry-After the client should
+  // honour — forward it through so the browser doesn't have to guess.
+  const retryAfter = upstreamRes.headers.get("retry-after");
+  if (upstreamRes.status === 429 && retryAfter) {
+    headers["retry-after"] = retryAfter;
+  }
+
   const response = new Response(body, {
     status: upstreamRes.status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "access-control-allow-origin": "*",
-      "cache-control": `public, max-age=${CACHE_SECONDS}`,
-    },
+    headers,
   });
 
   if (upstreamRes.ok) {
@@ -78,9 +95,28 @@ export async function onRequestOptions() {
   });
 }
 
-function jsonResponse(obj, status) {
-  return new Response(JSON.stringify(obj), {
+// Catch-all for any method other than GET/OPTIONS (those have their own
+// handlers above and take priority over this one). Keeps method_not_allowed
+// on this route consistent with the rest of the API's error contract instead
+// of falling back to Cloudflare's default plain-text 405.
+export async function onRequest(context) {
+  return errorResponse(
+    "method_not_allowed",
+    `${context.request.method} is not supported on this endpoint. Use GET.`,
+    405,
+    { "access-control-allow-origin": "*", "allow": "GET, OPTIONS" }
+  );
+}
+
+function errorResponse(code, message, status, extraHeaders) {
+  return new Response(JSON.stringify({ error: { code, message } }), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8" },
+    headers: Object.assign(
+      {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+      },
+      extraHeaders || {}
+    ),
   });
 }
